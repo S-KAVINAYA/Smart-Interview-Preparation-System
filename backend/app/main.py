@@ -6,13 +6,13 @@ from app.database.session import engine
 # Import models
 from app.users.models.user import User
 from app.lookups.models.career_stage import CareerStage
-
+from app.auth.routes import router as auth_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Smart Interview Preparation System"
 )
-
+app.include_router(auth_router)
 
 @app.get("/")
 def home():
