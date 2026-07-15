@@ -7,8 +7,11 @@ from app.database.session import SessionLocal
 
 from app.auth.security import get_current_user
 from app.users.models.user import User
-
+from app.auth.schemas import ForgotPasswordRequest
+from app.auth.service import forgot_password
 from fastapi.security import OAuth2PasswordRequestForm
+from app.auth.schemas import ResetPasswordRequest
+from app.auth.service import reset_password
 
 router = APIRouter(
     prefix="/auth",
@@ -61,3 +64,25 @@ def get_profile(
         "mobile_verified": current_user.mobile_verified,
         "account_status": current_user.account_status
     }
+
+@router.post("/forgot-password")
+def forgot_password_api(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+
+    return forgot_password(
+        db,
+        request
+    )
+
+@router.post("/reset-password")
+def reset_password_api(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+
+    return reset_password(
+        db,
+        request
+    )

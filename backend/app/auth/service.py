@@ -16,6 +16,26 @@ from app.auth.security import (
     create_access_token
 )
 
+from app.auth.schemas import ForgotPasswordRequest
+from app.constants.verification_types import PASSWORD_RESET
+from app.verification.models import VerificationCode
+from app.utils.otp import generate_otp
+from app.utils.datetime_utils import utc_now
+from datetime import timedelta
+
+from app.auth.schemas import ResetPasswordRequest
+
+from app.exceptions.custom_exceptions import (
+    InvalidOTPException,
+    ExpiredOTPException,
+    OTPAlreadyUsedException
+)
+
+from app.constants.delivery_methods import (
+    EMAIL,
+    MOBILE
+)
+
 def create_user(db: Session, user: UserSignup):
 
     existing_email = db.query(User).filter(
@@ -83,4 +103,114 @@ def login_user(db: Session, email: str, password: str):
     return {
         "access_token": token,
         "token_type": "bearer"
+    }
+
+def forgot_password(
+    db: Session,
+    request: ForgotPasswordRequest
+):
+
+    if request.email:
+
+        user = db.query(User).filter(
+            User.email == request.email
+        ).first()
+
+    else:
+
+        user = db.query(User).filter(
+            User.mobile_number == request.mobile_number
+        ).first()
+
+    if not user:
+        raise InvalidCredentialsException()
+
+    db.query(VerificationCode).filter(
+        VerificationCode.user_id == user.id,
+        VerificationCode.verification_type == PASSWORD_RESET,
+        VerificationCode.is_used == False
+    ).update(
+        {
+            "is_used": True
+        }
+    )
+
+    db.commit()
+
+    otp = generate_otp()
+
+    verification = VerificationCode(
+        user_id=user.id,
+        verification_type=PASSWORD_RESET,
+        code=otp,
+        expires_at=utc_now() + timedelta(minutes=10),
+        is_used=False,
+        delivery_method=EMAIL if request.email else MOBILE
+    )
+
+    db.add(verification)
+
+    db.commit()
+
+    db.refresh(verification)
+
+    return {
+        "message": "Password reset OTP generated successfully.",
+        "otp": otp
+    }
+
+def reset_password(
+    db: Session,
+    request: ResetPasswordRequest
+):
+
+    if request.email:
+
+        user = db.query(User).filter(
+            User.email == request.email
+        ).first()
+
+    else:
+
+        user = db.query(User).filter(
+            User.mobile_number == request.mobile_number
+        ).first()
+
+    if not user:
+        raise InvalidCredentialsException()
+
+    verification = (
+        db.query(VerificationCode)
+        .filter(
+            VerificationCode.user_id == user.id,
+            VerificationCode.verification_type == PASSWORD_RESET
+        )
+        .order_by(
+            VerificationCode.created_at.desc()
+        )
+        .first()
+    )
+
+    if verification is None:
+        raise InvalidOTPException()
+
+    if verification.is_used:
+        raise OTPAlreadyUsedException()
+
+    if verification.code != request.otp:
+        raise InvalidOTPException()
+
+    if verification.expires_at < utc_now():
+        raise ExpiredOTPException()
+
+    user.password_hash = hash_password(
+        request.new_password
+    )
+
+    verification.is_used = True
+
+    db.commit()
+
+    return {
+        "message": "Password reset successfully."
     }

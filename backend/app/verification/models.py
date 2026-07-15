@@ -51,3 +51,8 @@ class VerificationCode(Base):
         DateTime(timezone=True),
         server_default=func.now()
     )
+
+    delivery_method = Column(
+        String(20),
+        nullable=False
+    )
