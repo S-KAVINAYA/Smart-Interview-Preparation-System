@@ -44,3 +44,28 @@ class UnauthorizedException(HTTPException):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized access."
         )
+
+class InvalidOTPException(HTTPException):
+
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP."
+        )
+
+
+class ExpiredOTPException(HTTPException):
+
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired."
+        )
+
+class OTPAlreadyUsedException(HTTPException):
+
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has already been used."
+        )
