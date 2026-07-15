@@ -5,6 +5,10 @@ from app.auth.schemas import UserSignup, UserLogin
 from app.auth.service import create_user, login_user
 from app.database.session import SessionLocal
 
+from app.auth.security import get_current_user
+from app.users.models.user import User
+
+from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(
     prefix="/auth",
@@ -34,12 +38,26 @@ def signup(
 
 @router.post("/login")
 def login(
-    user: UserLogin,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-
     return login_user(
         db,
-        user.email,
-        user.password
+        form_data.username,
+        form_data.password
     )
+
+@router.get("/me")
+def get_profile(
+    current_user: User = Depends(get_current_user)
+):
+    return {
+        "id": current_user.id,
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "mobile_number": current_user.mobile_number,
+        "career_stage_id": current_user.career_stage_id,
+        "email_verified": current_user.email_verified,
+        "mobile_verified": current_user.mobile_verified,
+        "account_status": current_user.account_status
+    }

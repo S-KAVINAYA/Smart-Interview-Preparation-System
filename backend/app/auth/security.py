@@ -2,8 +2,16 @@ import os
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
-from jose import jwt
 from passlib.context import CryptContext
+
+from jose import JWTError, jwt
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+
+from app.database.session import SessionLocal
+from app.users.models.user import User
+from app.exceptions.custom_exceptions import UnauthorizedException
 
 load_dotenv()
 
@@ -47,3 +55,43 @@ def create_access_token(data: dict):
         SECRET_KEY,
         algorithm=ALGORITHM
     )
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+
+    try:
+
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        email = payload.get("sub")
+
+        if email is None:
+            raise UnauthorizedException()
+
+    except JWTError:
+        raise UnauthorizedException()
+
+    user = db.query(User).filter(
+        User.email == email
+    ).first()
+
+    if user is None:
+        raise UnauthorizedException()
+
+    return user

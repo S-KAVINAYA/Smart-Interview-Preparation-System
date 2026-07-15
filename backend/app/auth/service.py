@@ -50,12 +50,20 @@ def create_user(db: Session, user: UserSignup):
 
 def login_user(db: Session, email: str, password: str):
 
+    
+    print("Email received:", email)
+
     user = db.query(User).filter(
         User.email == email
     ).first()
 
+    print("User found:", user)
+
     if not user:
         raise InvalidCredentialsException()
+
+    print("Password entered:", password)
+    print("Stored hash:", user.password_hash if user else None)
 
     if not verify_password(
         password,
@@ -66,7 +74,9 @@ def login_user(db: Session, email: str, password: str):
     token = create_access_token(
         {
             "sub": user.email,
-            "user_id": user.id
+            "user_id": user.id,
+            "career_stage_id": user.career_stage_id,
+            "login_provider": user.login_provider
         }
     )
 
